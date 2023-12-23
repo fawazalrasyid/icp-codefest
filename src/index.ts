@@ -39,7 +39,7 @@ export function getMessage(id: string): Result<Message, string> {
   return match(messageStorage.get(id), {
     Some: (message) => Result.Ok<Message, string>(message),
     None: () =>
-      Result.Err<Message, string>(`a message with id=${id} not found`),
+      Result.Err<Message, string>(`Message with id=${id} not found`),
   });
 }
 
@@ -60,32 +60,30 @@ export function updateMessage(
   id: string,
   payload: MessagePayload
 ): Result<Message, string> {
-  return match(messageStorage.get(id), {
-    Some: (message) => {
-      const updatedMessage: Message = {
-        ...message,
-        ...payload,
-        updatedAt: Opt.Some(ic.time()),
-      };
-      messageStorage.insert(message.id, updatedMessage);
-      return Result.Ok<Message, string>(updatedMessage);
-    },
-    None: () =>
-      Result.Err<Message, string>(
-        `couldn't update a message with id=${id}. message not found`
-      ),
-  });
+  const existingMessage = messageStorage.get(id);
+  
+  if ('None' in existingMessage) {
+    return Result.Err<Message, string>(`Message with id=${id} not found`);
+  }
+
+  const updatedMessage: Message = {
+    ...existingMessage.Some,
+    ...payload,
+    updatedAt: Opt.Some(ic.time()),
+  };
+  messageStorage.insert(id, updatedMessage);
+  return Result.Ok<Message, string>(updatedMessage);
 }
 
 $update;
 export function deleteMessage(id: string): Result<Message, string> {
-  return match(messageStorage.remove(id), {
-    Some: (deletedMessage) => Result.Ok<Message, string>(deletedMessage),
-    None: () =>
-      Result.Err<Message, string>(
-        `couldn't delete a message with id=${id}. message not found.`
-      ),
-  });
+  const deletedMessage = messageStorage.remove(id);
+
+  if ('None' in deletedMessage) {
+    return Result.Err<Message, string>(`Message with id=${id} not found`);
+  }
+
+  return Result.Ok<Message, string>(deletedMessage.Some);
 }
 
 // a workaround to make uuid package work with Azle
